@@ -76,6 +76,15 @@
                 </configuration>
             </plugin>
         </plugins>
+        <testResources>
+            <testResource>
+                <directory>jsonata/test/test-suite/datasets</directory>
+                <targetPath>jsonata/test/test-suite/datasets</targetPath>
+                <includes>
+                    <include>**/*.json</include>
+                </includes>
+            </testResource>
+        </testResources>
     </build>
 
     <!-- Optional: Enable GitHub Packages as deployment target -->
