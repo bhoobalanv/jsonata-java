@@ -2415,4 +2415,19 @@ public class Functions {
         long t = Jsonata.current.get().timestamp;
         return t;
     }
+    
+    public static Object transform (Object arg, Object transformed) {
+        
+        // undefined inputs always return undefined
+        if (arg == null) {
+            return null;
+        }
+        
+        for (Entry entry : ((Map<Object,Object>)transformed).entrySet()) {
+            ((Map)arg).put(entry.getKey(), entry.getValue());
+        }
+        
+        return arg;
+    }
+    
 }

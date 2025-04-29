@@ -117,6 +117,11 @@ public class Jsonata {
     }
 
     static Frame staticFrame;// = createFrame(null);
+    
+    public static Frame getStaticFrame() {
+        return staticFrame;
+    }
+    
  
     /**
      * Evaluate expression against input data
@@ -2305,6 +2310,7 @@ public class Jsonata {
 
         defineFunction("now", "<s?s?:s>");
         defineFunction("millis", "<:n>");
+        defineFunction("transform", "<oo:o>");
 
         //  environment.bind("now", defineFunction(function(picture, timezone) {
         //      return datetime.fromMillis(timestamp.getTime(), picture, timezone);

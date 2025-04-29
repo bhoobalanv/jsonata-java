@@ -9,7 +9,16 @@ import com.dashjoin.jsonata.Jsonata.JFunction;
 import com.dashjoin.jsonata.Jsonata.JFunctionCallable;
 
 public class CustomFunctionTest {
-
+  
+  
+  @Test
+  public void testBinding() {
+    Jsonata.Frame staticFrame = Jsonata.getStaticFrame();
+    staticFrame.bind("greet", () -> "Hello world");
+  }
+  
+  
+  
   @Test
   public void testSupplier() {
     var expression = Jsonata.jsonata("$greet()");
