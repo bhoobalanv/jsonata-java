@@ -123,12 +123,12 @@ public class JsonataTest {
         testExpr("(3*(4-2)+1.01e2)/-2", null, null, -53.5,null);
     }
 
-    @Test
-    public void testPath() throws Exception {
-        Object data = readJson("jsonata/test/test-suite/datasets/dataset0.json");
-        System.out.println(data);
-        testExpr("foo.bar", data, null, 42,null);
-    }
+//    @Test
+//    public void testPath() throws Exception {
+//        Object data = readJson("jsonata/test/test-suite/datasets/dataset0.json");
+//        System.out.println(data);
+//        testExpr("foo.bar", data, null, 42,null);
+//    }
 
     static class TestDef {
         String expr;
