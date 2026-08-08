@@ -37,6 +37,7 @@ import java.util.concurrent.Callable;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -133,7 +134,17 @@ public class Jsonata {
     Object evaluate(Symbol expr, Object input, Frame environment) {
         // Thread safety:
         // Make sure each evaluate is executed on an instance per thread
-        return getPerThreadInstance()._evaluate(expr, input, environment);
+        Jsonata _this = getPerThreadInstance();
+        // Save and restore the evaluation context so that nested
+        // evaluations (e.g. $eval()) see the correct context.        
+        Object _input = _this.input;
+        Frame _environment = _this.environment;
+        try {
+          return _this._evaluate(expr, input, environment);
+        } finally {
+            _this.input = _input;
+            _this.environment = _environment;
+        }
     }
 
     Object _evaluate(Symbol expr, Object input, Frame environment) {
@@ -437,7 +448,7 @@ public class Jsonata {
         ((JList)result).tupleStream = true;
         var stepEnv = environment;
         if(tupleBindings == null) {
-            tupleBindings = (List<Map>) input.stream().filter(item -> item!=null).map(item -> Map.of("@", item)).collect(Collectors.toList());
+            tupleBindings = (List<Map>) input.stream().map(item -> Utils.mapOf("@", item)).collect(Collectors.toList());
         }
 
         for(var ee = 0; ee < tupleBindings.size(); ee++) {
@@ -458,7 +469,7 @@ public class Jsonata {
                     if((res instanceof JList) && ((JList)res).tupleStream) {
                         tuple.putAll((Map)res.get(bb));
                     } else {
-                        if (expr.focus!=null) {
+                        if (expr.focus!=null && !expr.focus.equals("")) {
                             tuple.put(expr.focus, res.get(bb));
                             tuple.put("@", tupleBindings.get(ee).get("@"));
                         } else {
@@ -497,7 +508,7 @@ public class Jsonata {
             ((JList)results).tupleStream = true;
         }
         if (!(input instanceof List)) { // isArray
-            input = Utils.createSequence(input);
+            input = Utils.createSequence(input == null ? Utils.NONE : input);
         }
         if (predicate.type.equals("number")) {
             var index = ((Number)predicate.value).intValue();  // round it down - was Math.floor
@@ -505,8 +516,12 @@ public class Jsonata {
                 // count in from end of array
                 index = ((List)input).size() + index;
             }
-            var item = index<((List)input).size() ? ((List)input).get(index) : null;
-            if(item != null) {
+            if (0<=index && index<((List)input).size()) {
+                var item = ((List)input).get(index);
+                // Preserve JSON null at this index (vs. out-of-bounds, which is undefined)
+                if (item == null) {
+                    item = NULL_VALUE;
+                }
                 if(item instanceof List) {
                     results = (List)item;
                 } else {
@@ -728,9 +743,6 @@ public class Jsonata {
                 if((value instanceof List)) {
                     value = flatten(value, null);
                     results = (List)Functions.append(results, value);
-                } else if (value instanceof Map) {
-                // Call recursively do decompose the map
-                results.addAll((List)evaluateWildcard(expr, value));
                 } else {
                     results.add(value);
                 }
@@ -981,7 +993,8 @@ public class Jsonata {
         }
 
         for(var i = 0; i < ((List)rhs).size(); i++) {
-            if(((List)rhs).get(i).equals(lhs)) {
+            Object tmp = evaluateEqualityExpression(lhs, ((List)rhs).get(i), "=");
+            if (Boolean.TRUE.equals(tmp)) {
                 result = true;
                 break;
             }
@@ -1387,7 +1400,7 @@ public class Jsonata {
                 if(aa.equals(bb)) {
                     // both the same - move on to next term
                     continue;
-                } else if (((Comparable)aa).compareTo(bb)<0) {
+                } else if (Utils.compareTo(aa, bb)<0) {
                     comp = -1;
                 } else {
                     comp = 1;
@@ -1760,14 +1773,18 @@ public class Jsonata {
                 }
              } else if (proc instanceof Pattern) {
                 List _res = new ArrayList<>();
-                for (String s : (List<String>)validatedArgs) {
+                for (Object s : (List)validatedArgs) {
                 //System.err.println("PAT "+proc+" input "+s);
-                    if (((Pattern)proc).matcher(s).find()) {
-                        //System.err.println("MATCH");
-                        _res.add(s);
+                    if (s instanceof String) {
+                        Matcher matcher = ((Pattern) proc).matcher((String) s);
+                        _res.add(regexClosure(matcher));
                     }
                 }
-                result = _res;
+                if (_res.size() == 1) {
+                    result = _res.get(0);
+                } else {
+                    result = _res;
+                }
              } else {
                 System.out.println("Proc not found "+proc);
                  throw new JException(
@@ -1786,6 +1803,21 @@ public class Jsonata {
          }
          return result;
      }
+
+    private static Map regexClosure(Matcher matcher) {
+        if (matcher.find()) {
+            String group = matcher.group();
+            return Map.of(
+                    "match", group,
+                    "start", matcher.start(),
+                    "end", matcher.end(),
+                    "groups", List.of(group),
+                    "next", (Fn0<Map>) () -> regexClosure(matcher)
+            );
+        } else {
+            return null;
+        }
+    }
  
      /**
       * Evaluate lambda against input data
@@ -2549,6 +2581,38 @@ public class Jsonata {
         this.validateInput = validateInput;
     }
 
+    /**
+     * Flag: output NULL_VALUE conversion is enabled
+     */
+    boolean outputConvertNulls = true;
+
+    /**
+     * Checks whether output NULL_VALUE conversion is enabled
+     */
+    public boolean isOutputConvertNulls() {
+        return outputConvertNulls;
+    }
+
+    /**
+     * Enable or disable output {@link Jsonata#NULL_VALUE} conversion.
+     * Enabled by default, which returns both "Jsonata null" and "Jsonata undefined"
+     * as Java null.
+     * 
+     * When disabled, output values might contain
+     * <ul>
+     *  <li>{@link Jsonata#NULL_VALUE} indicating "Jsonata null"
+     *  <li>Java null indicating "Jsonata undefined"
+     * </ul>
+     * 
+     * Manually calling {@link Utils#convertNulls(Object)}
+     * on a raw result without output conversion will yield the converted result.
+     * 
+     * @param outputConvertNulls
+     */
+    public void setOutputConvertNulls(boolean outputConvertNulls) {
+        this.outputConvertNulls = outputConvertNulls;
+    }
+
     public Object evaluate(Object input) { return evaluate(input,null); }
 
     /* async */
@@ -2592,7 +2656,8 @@ public class Jsonata {
         //  if (typeof callback === "function") {
         //      callback(null, it);
         //  }
-            it = Utils.convertNulls(it);
+            if (outputConvertNulls)
+                it = Utils.convertNulls(it);
             return it;
         } catch (Exception err) {
             // insert error message into structure

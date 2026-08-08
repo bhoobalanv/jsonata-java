@@ -20,6 +20,7 @@ package com.dashjoin.jsonata;
 import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -79,11 +80,7 @@ public class Utils {
         JList<Object> sequence = new JList<>();
         sequence.sequence = true;
         if (el!=NONE) {
-            if (el instanceof List && ((List)el).size()==1)
-                sequence.add(((List)el).get(0));
-            else
-            // This case does NOT exist in Javascript! Why?
-                sequence.add(el);
+            sequence.add(el);
         }
         return sequence;
     }
@@ -209,6 +206,12 @@ public class Utils {
             convertNulls((List)val);
     }
 
+    /**
+     * Converts all occurrences of {@link Jsonata#NULL_VALUE} in the given object to null
+     * 
+     * @param res Result object which might contain NULL_VALUEs
+     * @return The same object with NULL_VALUEs replaced with null
+     */
     public static Object convertNulls(Object res) {
         recurse(res);
         return convertValue(res);
@@ -268,5 +271,26 @@ public class Utils {
               }
           }
       }
-  }
+    }
+
+    /**
+     * version of Map.of(key, value) that allows value to be null
+     */
+    static Map mapOf(String key, Object value) {
+        Map<String, Object> map = new HashMap<>();
+        map.put(key, value);
+        return map;
+    }
+    
+    /**
+     * called from Jsonata.compare() - aa and bb are either both strings or numbers
+     * for numbers, compare doubleValue to avoid cast error when int is compared to double
+     */
+    @SuppressWarnings("unchecked")
+    static int compareTo(Object aa, Object bb) {
+        if (aa instanceof String)
+            return ((Comparable)aa).compareTo(bb);
+        else
+            return Double.compare(((Number)aa).doubleValue(), ((Number)bb).doubleValue());
+    }
 }

@@ -6,10 +6,27 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Map;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class TypesTest {
+
+  @Test
+  public void castTestIn() {
+    Assertions.assertFalse((boolean)jsonata("3 in $").evaluate(Arrays.asList(1.0, 2.0)));
+    Assertions.assertTrue((boolean)jsonata("1 in $").evaluate(Arrays.asList(1.0, 2.0)));
+  }
+
+  @Test
+  public void castTestEquals() {
+    Assertions.assertTrue((boolean)jsonata("1 = $").evaluate(1.0));
+    Assertions.assertFalse((boolean)jsonata("1 = $").evaluate(2.0));
+    Assertions.assertTrue( (boolean)jsonata("{'x':1 } = {'x':1 }").evaluate(null)  );
+    Assertions.assertFalse( (boolean)jsonata("{'x':1 } = {'x':2 }").evaluate(null)  );
+    Assertions.assertTrue( (boolean)jsonata("[1,null] = [1,null]").evaluate(null)  );
+    Assertions.assertFalse( (boolean)jsonata("[1,null] = [2,null]").evaluate(null)  );
+  }
 
   @Test
   public void testIllegalTypes() {

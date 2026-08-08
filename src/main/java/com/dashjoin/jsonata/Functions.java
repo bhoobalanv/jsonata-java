@@ -195,6 +195,11 @@ public class Functions {
         }
 
         if (arg instanceof Double) {
+          double d = ((Double)arg).doubleValue();
+          if (d % 1 == 0 && Long.MIN_VALUE < d && d <= Long.MAX_VALUE) {
+              b.append(Math.round(d)); return;
+          }
+            
           // TODO: this really should be in the jackson serializer
           BigDecimal bd = new BigDecimal((Double)arg, new MathContext(15));
           String res = bd.stripTrailingZeros().toString();
@@ -226,7 +231,7 @@ public class Functions {
                     b.append("  ");
                 }
                 b.append('"');
-                b.append(e.getKey());
+                Utils.quote(e.getKey(), b);
                 b.append('"');
                 b.append(':');
                 if (prettify)
@@ -561,7 +566,7 @@ public class Functions {
      * @param {string} [char] - the pad character(s); defaults to ' '
      * @returns {string} - padded string
      */
-    public static String pad(String str, Integer width, String _char) {
+    public static String pad(String str, Number _width, String _char) {
         // undefined inputs always return undefined
         if (str == null) {
             return null;
@@ -572,6 +577,7 @@ public class Functions {
         }
 
         String result;
+        int width = _width.intValue();
 
         if (width < 0) {
             result = leftPad(str, -width, _char);
@@ -1476,7 +1482,7 @@ public class Functions {
         if (arg instanceof List) {
             List l = (List)arg;
             if (l.size() == 1) {
-                result = toBoolean(l.get(0));
+                result = Boolean.TRUE.equals(toBoolean(l.get(0)));
             } else if (l.size() > 1) {
                 long truesLength = l.stream().filter(e -> Jsonata.boolize(e)).count();
                 result = truesLength > 0;
@@ -1885,7 +1891,7 @@ public class Functions {
      */
     public static void assertFn(boolean condition, String message) throws Throwable {
         if(!condition) {
-            throw new JException("D3141", -1, "$assert() statement failed");
+            throw new JException("D3141", -1, message!=null ? message : "$assert() statement failed");
 //                message: message || "$assert() statement failed"
         }
     }
@@ -1952,14 +1958,18 @@ public class Functions {
                 @Override
                 public int compare(Object o1, Object o2) {
                     try {
-                        boolean swap = (boolean) funcApply(comparator, Arrays.asList(o1, o2));
+                        Boolean swap = toBoolean(funcApply(comparator, Arrays.asList(o1, o2)));
+                        // Symmetry/equality: if Jsonata comp(o1,o2)==comp(o2,o1) means Java o1==o2 (return 0)
+                        Boolean swapSym = toBoolean(funcApply(comparator, Arrays.asList(o2, o1)));
+                        if (swap != null && swap.equals(swapSym))
+                          return 0;
+                        if (swap == null)
+                          return 0;
                         if (swap)
                           return 1;
                         else
                           return -1;
                     } catch (Throwable e) {
-                        // TODO Auto-generated catch block
-                        //e.printStackTrace();
                         throw new RuntimeException(e);
                     }
                 }
@@ -2134,7 +2144,7 @@ public class Functions {
     }
 
     public static Method getFunction(Class clz, String name) {
-        Method[] methods = Functions.class.getMethods();
+        Method[] methods = clz.getMethods();
         for (Method m : methods) {
             // if (m.getModifiers() == (Modifier.STATIC | Modifier.PUBLIC) ) {
             //     System.out.println(m.getName());
@@ -2418,13 +2428,20 @@ public class Functions {
     
     public static Object transform (Object arg, Object transformed) {
         
-        // undefined inputs always return undefined
-        if (arg == null) {
-            return null;
-        }
-        
-        for (Entry entry : ((Map<Object,Object>)transformed).entrySet()) {
-            ((Map)arg).put(entry.getKey(), entry.getValue());
+        try {
+            // undefined inputs always return undefined
+            if (arg == null) {
+                return null;
+            }
+            
+            for (Entry entry : ((Map<Object, Object>) transformed).entrySet()) {
+                ((Map) arg).put(entry.getKey(), entry.getValue());
+            }
+        }catch (Exception ex) {
+            // Ignore the exception, return null
+            // System.err.println("Exception in parseInteger (returning null): " + ex);
+             ex.printStackTrace();
+//            return null;
         }
         
         return arg;

@@ -3,8 +3,11 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.dashjoin</groupId>
     <artifactId>jsonata</artifactId>
-    <version>0.9.8</version>
+    <version>0.9.10</version>
     <packaging>jar</packaging>
+    <name>${project.groupId}:${project.artifactId}</name>
+    <description>JSONata Java reference port</description>
+    <url>https://github.com/bhoobalanv/jsonata-java</url>
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
@@ -22,7 +25,7 @@
         <dependency>
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
-            <version>2.13.0</version>
+            <version>2.15.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -47,14 +50,16 @@
             <version>2.17.0</version>
             <scope>test</scope>
         </dependency>
+
+        <!-- Apache Commons Text -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-text</artifactId>
+            <version>1.14.0</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
-<!--    <parent>-->
-<!--	    <groupId>com.dashjoin</groupId>-->
-<!--	    <artifactId>jsonata-parent</artifactId>-->
-<!--        <relativePath>pom</relativePath>-->
-<!--        <version>0.9.2024-10</version>-->
-<!--    </parent>-->
     <build>
         <plugins>
             <!-- Maven compiler plugin -->
@@ -70,7 +75,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.1.2</version>
+                <version>3.5.4</version>
                 <configuration>
                     <useModulePath>false</useModulePath>
                 </configuration>
@@ -87,7 +92,7 @@
         </testResources>
     </build>
 
-    <!-- Optional: Enable GitHub Packages as deployment target -->
+    <!-- Enable GitHub Packages as deployment target -->
     <distributionManagement>
         <repository>
             <id>github</id>
@@ -95,6 +100,5 @@
             <url>https://maven.pkg.github.com/bhoobalanv/jsonata-java</url>
         </repository>
     </distributionManagement>
-
 
 </project>
