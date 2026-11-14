@@ -2706,6 +2706,17 @@ public class Jsonata {
         return errors;
     }
 
+    /**
+     * The parsed AST root node, for static inspection by tooling (validators,
+     * linters). The tree is read-only: {@link Symbol} list accessors return
+     * unmodifiable views.
+     *
+     * @return root {@link Symbol} of the compiled expression
+     */
+    public Symbol getAst() {
+        return ast;
+    }
+
     final static ThreadLocal<Parser> _parser = new ThreadLocal<>();
     final static synchronized Parser getParser() {
         Parser p = _parser.get();

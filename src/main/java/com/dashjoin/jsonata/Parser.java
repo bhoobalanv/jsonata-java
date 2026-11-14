@@ -31,6 +31,7 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -223,6 +224,41 @@ public class Parser implements Serializable {
 
         @Override public String toString() {
             return this.getClass().getSimpleName()+" "+id+" value="+value;
+        }
+
+        /* ---------- public read-only AST accessors ----------
+         * Intended for static analysis tooling (validators, linters) that needs
+         * to inspect the parsed expression tree. List accessors return
+         * unmodifiable views of the parser-internal lists; do not mutate. */
+
+        public String getId() { return id; }
+        public String getType() { return type; }
+        public Object getValue() { return value; }
+        public int getPosition() { return position; }
+        public boolean isKeepArray() { return keepArray; }
+        public boolean isDescending() { return descending; }
+
+        public Symbol getLhs() { return lhs; }
+        public Symbol getRhs() { return rhs; }
+        public Symbol getExpression() { return expression; }
+        public Symbol getProcedure() { return procedure; }
+        public Symbol getBody() { return body; }
+        public Symbol getSlot() { return slot; }
+        public Symbol getNextFunction() { return nextFunction; }
+        public Symbol getCondition() { return condition; }
+        public Symbol getThen() { return then; }
+        public Symbol getElse() { return _else; }
+
+        public List<Symbol> getSteps() { return unmodifiable(steps); }
+        public List<Symbol> getStages() { return unmodifiable(stages); }
+        public List<Symbol> getPredicate() { return unmodifiable(predicate); }
+        public List<Symbol> getArguments() { return unmodifiable(arguments); }
+        public List<Symbol> getExpressions() { return unmodifiable(expressions); }
+        public List<Symbol> getTerms() { return unmodifiable(terms); }
+        public List<Symbol> getRhsTerms() { return unmodifiable(rhsTerms); }
+
+        private static List<Symbol> unmodifiable(List<Symbol> list) {
+            return list == null ? null : Collections.unmodifiableList(list);
         }
     }
 
