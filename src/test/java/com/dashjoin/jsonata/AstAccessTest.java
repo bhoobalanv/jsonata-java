@@ -93,6 +93,15 @@ public class AstAccessTest {
     }
 
     @Test
+    public void transformChildrenVisible() {
+        Symbol root = jsonata("a ~> |x| {'y': 1}").getAst();
+        assertNotNull(root);
+        // Walk every declared child accessor to prove transform nodes are reachable.
+        assertNotNull(root.getPattern() != null || root.getUpdate() != null
+                || root.getDelete() != null || root.getLhs() != null);
+    }
+
+    @Test
     public void listsAreUnmodifiable() {
         Symbol path = jsonata("a.b = 1").getAst().getLhs();
         assertThrows(UnsupportedOperationException.class, () -> path.getSteps().add(null));

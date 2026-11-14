@@ -248,6 +248,9 @@ public class Parser implements Serializable {
         public Symbol getCondition() { return condition; }
         public Symbol getThen() { return then; }
         public Symbol getElse() { return _else; }
+        public Symbol getPattern() { return pattern; }
+        public Symbol getUpdate() { return update; }
+        public Symbol getDelete() { return delete; }
 
         public List<Symbol> getSteps() { return unmodifiable(steps); }
         public List<Symbol> getStages() { return unmodifiable(stages); }
