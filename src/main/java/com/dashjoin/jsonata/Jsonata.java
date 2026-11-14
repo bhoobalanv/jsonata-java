@@ -70,11 +70,24 @@ public class Jsonata {
 
         public boolean isParallelCall;
 
+        /**
+         * True when this frame or any ancestor (at construction time) has an
+         * {@code __evaluate_entry}/{@code __evaluate_exit} instrumentation hook
+         * bound. Lets the evaluator skip the chain walk on the hot path;
+         * hooks bound later into an existing chain are still found via the
+         * lookup itself.
+         */
+        boolean hooksDefined;
+
         public Frame(Frame enclosingEnvironment) {
             parent = enclosingEnvironment;
+            if (enclosingEnvironment != null && enclosingEnvironment.hooksDefined)
+                hooksDefined = true;
         }
 
         public void bind(String name, Object val) {
+            if (name != null && name.startsWith("__evaluate_"))
+                hooksDefined = true;
             bindings.put(name, val);
         }
 
@@ -91,8 +104,9 @@ public class Jsonata {
         public Object lookup(String name) {
             // Important: if we have a null value,
             // return it
-            if (bindings.containsKey(name))
-                return bindings.get(name);
+            Object value = bindings.get(name);
+            if (value != null || bindings.containsKey(name))
+                return value;
             if (parent!=null)
                 return parent.lookup(name);
             return null;
@@ -157,7 +171,7 @@ public class Jsonata {
 
         if (parser.dbg) System.out.println("eval expr="+expr+" type="+expr.type);//+" input="+input);
 
-        var entryCallback = environment.lookup("__evaluate_entry");
+        var entryCallback = environment.hooksDefined ? environment.lookup("__evaluate_entry") : null;
         if(entryCallback!=null) {
             ((EntryCallback)entryCallback).callback(expr, input, environment);
         }
@@ -232,7 +246,7 @@ public class Jsonata {
             result = /* await */ evaluateGroupExpression(expr.group, result, environment);
         }
  
-        var exitCallback = environment.lookup("__evaluate_exit");
+        var exitCallback = environment.hooksDefined ? environment.lookup("__evaluate_exit") : null;
         if(exitCallback!=null) {
             ((ExitCallback)exitCallback).callback(expr, input, environment, result);
         }
@@ -2627,9 +2641,7 @@ public class Jsonata {
             //var exec_env;
             // the variable bindings have been passed in - create a frame to hold these
             exec_env = createFrame(environment);
-            for (var v : bindings.bindings.keySet()) {
-                exec_env.bind(v, bindings.lookup(v));
-            }
+            exec_env.bindings.putAll(bindings.bindings);
         } else {
             exec_env = environment;
         }

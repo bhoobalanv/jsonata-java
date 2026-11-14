@@ -80,6 +80,8 @@ public class Signature implements Serializable {
 
     List<Param> _params = new ArrayList<>();
     Param _prevParam = _param;
+    /** Lazily compiled per-param pattern for context-type checks (was Pattern.compile per call). */
+    transient Map<Param, Pattern> _contextPatterns;
     Pattern _regex = null;
     String _signature = "";
     String functionName;
@@ -301,9 +303,10 @@ public class Signature implements Serializable {
         var result = new ArrayList<>();
 
         var args = (List)_args;
-        String suppliedSig = "";
+        StringBuilder sigBuf = new StringBuilder(args.size());
         for (Object arg : args)
-            suppliedSig += getSymbol(arg);
+            sigBuf.append(getSymbol(arg));
+        String suppliedSig = sigBuf.toString();
         
         Matcher isValid = _regex.matcher(suppliedSig);
         if (isValid != null && isValid.matches()) {
@@ -320,7 +323,15 @@ public class Signature implements Serializable {
                         // first check that the context value is the right type
                         var contextType = getSymbol(context);
                         // test contextType against the regex for this arg (without the trailing ?)
-                        if (Pattern.matches(param.regex, contextType)) {
+                        if (_contextPatterns == null) {
+                            _contextPatterns = new java.util.HashMap<>();
+                        }
+                        Pattern contextPattern = _contextPatterns.get(param);
+                        if (contextPattern == null) {
+                            contextPattern = Pattern.compile(param.regex);
+                            _contextPatterns.put(param, contextPattern);
+                        }
+                        if (contextPattern.matcher(contextType).matches()) {
                         //if (param.contextRegex.test(contextType)) {
                             validatedArgs.add(context);
                         } else {
@@ -336,12 +347,12 @@ public class Signature implements Serializable {
                     }
                 } else {
                     // may have matched multiple args (if the regex ends with a '+'
-                    // split into single tokens
-                    String[] singles = match.split("");
-                    for (String single : singles) {
+                    // step through the matched type symbols without allocating a split array
+                    for (int si = 0; si < match.length(); si++) {
                     //match.split('').forEach(function (single) {
+                        char single = match.charAt(si);
                         if (param.type.equals("a")) {
-                            if (single.equals("m")) {
+                            if (single == 'm') {
                                 // missing (undefined)
                                 arg = null;
                             } else {
@@ -349,9 +360,9 @@ public class Signature implements Serializable {
                                 var arrayOK = true;
                                 // is there type information on the contents of the array?
                                 if (param.subtype != null) {
-                                    if (!single.equals("a") && !match.equals(param.subtype)) {
+                                    if (single != 'a' && !match.equals(param.subtype)) {
                                         arrayOK = false;
-                                    } else if (single.equals("a")) {
+                                    } else if (single == 'a') {
                                         List argArr = (List)arg;
                                         if (argArr.size() > 0) {
                                             var itemType = getSymbol(argArr.get(0));
@@ -377,7 +388,7 @@ public class Signature implements Serializable {
                                     );
                                 }
                                 // the function expects an array. If it's not one, make it so
-                                if (!single.equals("a")) {
+                                if (single != 'a') {
                                     List _arg = new ArrayList<>(); _arg.add(arg);
                                     arg = _arg;
                                 }
