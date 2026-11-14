@@ -2641,6 +2641,10 @@ public class Jsonata {
             //var exec_env;
             // the variable bindings have been passed in - create a frame to hold these
             exec_env = createFrame(environment);
+            // putAll bypasses bind() — carry the instrumentation flag explicitly
+            if (bindings.hooksDefined) {
+                exec_env.hooksDefined = true;
+            }
             exec_env.bindings.putAll(bindings.bindings);
         } else {
             exec_env = environment;

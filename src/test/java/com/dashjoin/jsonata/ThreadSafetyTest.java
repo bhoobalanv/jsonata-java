@@ -293,4 +293,36 @@ public class ThreadSafetyTest {
         assertTrue(r2 > r1, "$millis() should advance across separate evaluations");
     }
 
+    @Test
+    public void testContextSignatureCache_concurrent() throws Exception {
+        // Context-typed built-ins ($uppercase/$lowercase/$length use <s-:s>) lazily
+        // compile the context-type pattern inside the shared static-frame Signature.
+        // Hammer them from many threads to exercise that cache concurrently.
+        Jsonata upper = jsonata("$uppercase()");
+        Jsonata len = jsonata("$length()");
+        int threads = 16, iters = 2000;
+        ExecutorService pool = Executors.newFixedThreadPool(threads);
+        CountDownLatch gate = new CountDownLatch(1);
+        AtomicInteger errors = new AtomicInteger();
+        List<Future<?>> futures = new ArrayList<>();
+        for (int t = 0; t < threads; t++) {
+            int id = t;
+            futures.add(pool.submit(() -> {
+                try {
+                    gate.await();
+                    for (int i = 0; i < iters; i++) {
+                        if (!("S" + id).equals(upper.evaluate("s" + id))) errors.incrementAndGet();
+                        if (!Integer.valueOf(2).equals(len.evaluate("ab"))) errors.incrementAndGet();
+                    }
+                } catch (Exception e) {
+                    errors.incrementAndGet();
+                }
+            }));
+        }
+        gate.countDown();
+        for (Future<?> f : futures) f.get(60, TimeUnit.SECONDS);
+        pool.shutdown();
+        assertEquals(0, errors.get(), "context-param signature cache failed under concurrency");
+    }
+
 }

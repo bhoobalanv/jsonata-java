@@ -80,8 +80,10 @@ public class Signature implements Serializable {
 
     List<Param> _params = new ArrayList<>();
     Param _prevParam = _param;
-    /** Lazily compiled per-param pattern for context-type checks (was Pattern.compile per call). */
-    transient Map<Param, Pattern> _contextPatterns;
+    /** Lazily compiled per-param pattern for context-type checks (was Pattern.compile per call).
+     *  Signatures of built-in functions are shared across threads, so the cache map is
+     *  concurrent and volatile; transient so deserialized instances re-create it. */
+    transient volatile Map<Param, Pattern> _contextPatterns;
     Pattern _regex = null;
     String _signature = "";
     String functionName;
@@ -323,14 +325,13 @@ public class Signature implements Serializable {
                         // first check that the context value is the right type
                         var contextType = getSymbol(context);
                         // test contextType against the regex for this arg (without the trailing ?)
-                        if (_contextPatterns == null) {
-                            _contextPatterns = new java.util.HashMap<>();
+                        Map<Param, Pattern> contextPatterns = _contextPatterns;
+                        if (contextPatterns == null) {
+                            contextPatterns = new java.util.concurrent.ConcurrentHashMap<>();
+                            _contextPatterns = contextPatterns;
                         }
-                        Pattern contextPattern = _contextPatterns.get(param);
-                        if (contextPattern == null) {
-                            contextPattern = Pattern.compile(param.regex);
-                            _contextPatterns.put(param, contextPattern);
-                        }
+                        Pattern contextPattern =
+                            contextPatterns.computeIfAbsent(param, p -> Pattern.compile(p.regex));
                         if (contextPattern.matcher(contextType).matches()) {
                         //if (param.contextRegex.test(contextType)) {
                             validatedArgs.add(context);
